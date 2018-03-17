@@ -3,13 +3,18 @@ package com.pronvis.revolut.test
 import com.typesafe.config.{Config, ConfigValue}
 
 import scala.collection.JavaConverters._
+import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration._
 
 class Settings(config: Config) {
 
   final val REVOLUT = "revolut"
 
-  val httpInterface: String   = config.getString(s"$REVOLUT.http.interface")
-  val httpPort: Int           = config.getInt(s"$REVOLUT.http.port")
+  val httpInterface: String         = config.getString(s"$REVOLUT.http.interface")
+  val httpPort: Int                 = config.getInt(s"$REVOLUT.http.port")
+  val queryTimeout: FiniteDuration  = config.getInt(s"$REVOLUT.query.timeoutSec").seconds
+  val storageSchema: String         = config.getString(s"$REVOLUT.storage.schema")
+  val migrationsDirs: Seq[String]   = config.getString(s"$REVOLUT.storage.migrations.dir").split(",")
 
   //helper methods
 

@@ -8,6 +8,10 @@
     </appender>
 
     <logger name="akka"                  level="INFO" />
+    <logger name="slick.jdbc"            level="DEBUG" />
+    <logger name="slick.compiler"        level="INFO" />
+    <logger name="slick.relational"      level="INFO" />
+    <logger name="com.zaxxer.hikari"     level="INFO" />
     <logger name="com.revolut"           level="DEBUG"/>
 
     <root level="DEBUG">

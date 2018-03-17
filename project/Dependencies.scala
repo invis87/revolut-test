@@ -35,6 +35,14 @@ object Dependencies extends AutoPlugin {
 
     val mockitoAll = settingKey[Seq[ModuleID]]("mockito all")
     val mockitoAllVersion = settingKey[String]("mockito all version")
+
+    val slick = settingKey[Seq[ModuleID]]("slick")
+    val slickVersion = settingKey[String]("slick version")
+    val h2Database = settingKey[Seq[ModuleID]]("h2 databse")
+    val h2DatabaseVersion = settingKey[String]("h2 database version")
+    val flyway = settingKey[Seq[ModuleID]]("flyway (db migration)")
+    val flywayVersion = settingKey[String]("flyway (db migration) version")
+
   }
 
   import autoImport._
@@ -52,7 +60,10 @@ object Dependencies extends AutoPlugin {
     enumeratumVersion := "1.5.12",
     enumeratumCirceVersion := "1.5.15",
     scalatestVersion := "3.0.5",
-    mockitoAllVersion := "1.10.19"
+    mockitoAllVersion := "1.10.19",
+    slickVersion := "3.2.1",
+    h2DatabaseVersion := "1.4.196",
+    flywayVersion := "4.1.2"
   )
 
   private def libraries = Seq(
@@ -100,6 +111,19 @@ object Dependencies extends AutoPlugin {
 
     mockitoAll := Seq(
       "org.mockito" % "mockito-all" % mockitoAllVersion.value % "test"
+    ),
+
+   slick := Seq(
+     "com.typesafe.slick" %% "slick" % slickVersion.value,
+     "com.typesafe.slick" %% "slick-hikaricp" % slickVersion.value
+   ),
+
+    h2Database := Seq(
+      "com.h2database" % "h2" % h2DatabaseVersion.value
+    ),
+
+    flyway := Seq(
+      "org.flywaydb" % "flyway-core" % flywayVersion.value
     )
   )
 
