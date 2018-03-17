@@ -1,0 +1,33 @@
+
+### Intellij ###
+*.iml
+.idea/
+
+### Mac folder preferences ###
+.DS_Store
+
+### Scala ###
+scalastyle-output.xml
+target/
+
+### Git ###
+**/git.properties
+
+### Java ###
+*.class
+
+### Other ###
+*.log
+data/
+
+### sbt specific ###
+scalatest
+.cache
+.history
+.lib/
+dist/*
+lib_managed/
+src_managed/
+project/boot/
+project/plugins/project/
+project/target/
