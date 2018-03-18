@@ -5,9 +5,8 @@ import akka.http.scaladsl.model.{ContentTypes, StatusCodes}
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.{RouteTestTimeout, ScalatestRouteTest}
 import com.pronvis.revolut.test.controllers.AccountsController
-import com.pronvis.revolut.test.controllers.requests.CreateAccountRequest
-import com.pronvis.revolut.test.exceptions.BusinessException
-import com.pronvis.revolut.test.model.{Account, AccountsMiddleware, AccountsModel, TransactionsModel}
+import com.pronvis.revolut.test.controllers.requests.{CreateAccountRequest, TransferRequest}
+import com.pronvis.revolut.test.model._
 import com.pronvis.revolut.test.utils.{ErrorHelper, ErrorMessage}
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import org.mockito.Mockito
@@ -33,10 +32,12 @@ class AccountsControllerSpec extends FunSuite with Matchers with ScalatestRouteT
 
   // ========================== TEST DATA ======================================
 
+  val masha = Account(3, "Masha", 789)
+  val petia = Account(2, "Petia", 456)
   val acccounts = Seq(
     Account(1, "Vasia", 123),
-    Account(2, "Petia", 456),
-    Account(3, "Masha", 789),
+    petia,
+    masha,
     Account(4, "Praskovia", 555),
     Account(5, "Marfa", 666)
   )
@@ -75,7 +76,6 @@ class AccountsControllerSpec extends FunSuite with Matchers with ScalatestRouteT
       status shouldEqual StatusCodes.InternalServerError
       contentType shouldEqual ContentTypes.`application/json`
       headers shouldEqual Seq()
-      response.status should be(StatusCodes.InternalServerError)
       responseAs[ErrorMessage].message shouldBe "Internal error"
     }
   }
@@ -102,26 +102,17 @@ class AccountsControllerSpec extends FunSuite with Matchers with ScalatestRouteT
 
   test("add account should return understandable message if account already exists") {
 
-    val businessExceptionMsg = "some understandable message"
     //given
     implicit val accountsModel: AccountsModel = mock[AccountsModel]
     implicit val transactionsModel: TransactionsModel = mock[TransactionsModel]
-    Mockito.when(accountsModel.find(org.mockito.Matchers.anyString())).thenReturn(Future.successful(None))
-    Mockito.when(accountsModel.addAccount(
-      org.mockito.Matchers.anyString(),
-      org.mockito.Matchers.any[BigDecimal]
-    ))
-      .thenAnswer((_: InvocationOnMock) => {
-        Future.failed(new BusinessException(businessExceptionMsg))
-      })
+    Mockito.when(accountsModel.find(masha.name)).thenReturn(Future.successful(Some(masha)))
 
     //when-then
-    Post(s"/accounts", CreateAccountRequest("new one", 872)) ~> route ~> check {
+    Post(s"/accounts", CreateAccountRequest(masha.name, masha.balance)) ~> route ~> check {
       status shouldEqual StatusCodes.InternalServerError
       contentType shouldEqual ContentTypes.`application/json`
       headers shouldEqual Seq()
-      response.status should be(StatusCodes.InternalServerError)
-      responseAs[ErrorMessage].message shouldBe businessExceptionMsg
+      responseAs[ErrorMessage].message shouldBe s"Account with name '${masha.name}' already exists."
     }
   }
 
@@ -130,6 +121,7 @@ class AccountsControllerSpec extends FunSuite with Matchers with ScalatestRouteT
     //given
     implicit val accountsModel: AccountsModel = mock[AccountsModel]
     implicit val transactionsModel: TransactionsModel = mock[TransactionsModel]
+    Mockito.when(accountsModel.find(org.mockito.Matchers.anyString())).thenReturn(Future.successful(None))
     Mockito.when(accountsModel.addAccount(
       org.mockito.Matchers.anyString(),
       org.mockito.Matchers.any[BigDecimal]
@@ -143,29 +135,91 @@ class AccountsControllerSpec extends FunSuite with Matchers with ScalatestRouteT
       status shouldEqual StatusCodes.InternalServerError
       contentType shouldEqual ContentTypes.`application/json`
       headers shouldEqual Seq()
-      response.status should be(StatusCodes.InternalServerError)
       responseAs[ErrorMessage].message shouldBe "Internal error"
     }
   }
 
   // ================================== TRANSFER MONEY =========================================
 
-//  test("transfer money, success scenario") {
-//    //given
-//    implicit val accountsModel: AccountsModel = mock[AccountsModel]
-//    implicit val transactionsModel: TransactionsModel = mock[TransactionsModel]
-//    Mockito.when(accountsMiddleware.addAccount(org.mockito.Matchers.any[CreateAccountRequest]))
-//      .thenAnswer((_: InvocationOnMock) => {
-//        Future.failed(new RuntimeException("some problem"))
-//      })
-//
-//    //when-then
-//    Post(s"/accounts", CreateAccountRequest("new one", 872)) ~> route ~> check {
-//      status shouldEqual StatusCodes.InternalServerError
-//      contentType shouldEqual ContentTypes.`application/json`
-//      headers shouldEqual Seq()
-//      response.status should be(StatusCodes.InternalServerError)
-//      responseAs[ErrorMessage].message shouldBe "Internal error"
-//    }
-//  }
+  test("transfer money, success scenario") {
+    //given
+    implicit val accountsModel: AccountsModel = mock[AccountsModel]
+    implicit val transactionsModel: TransactionsModel = mock[TransactionsModel]
+    Mockito.when(accountsModel.transferTransactionally(
+      org.mockito.Matchers.anyLong(),
+      org.mockito.Matchers.anyLong(),
+      org.mockito.Matchers.any[BigDecimal]
+    )).thenAnswer((_: InvocationOnMock) => Future.unit)
+    Mockito.when(transactionsModel.addTransaction(
+      org.mockito.Matchers.anyLong(),
+      org.mockito.Matchers.anyLong(),
+      org.mockito.Matchers.any[BigDecimal]
+    )).thenReturn(Future.successful(1l))
+
+    //when-then
+    Post(s"/transfer", TransferRequest(petia.id, petia.id, 200)) ~> route ~> check {
+      status shouldEqual StatusCodes.OK
+      contentType shouldEqual ContentTypes.`application/json`
+      headers shouldEqual Seq()
+      responseAs[Long] shouldBe 1l
+    }
+  }
+
+  test("transfer money should return InternalServerError if error") {
+    //given
+    implicit val accountsModel: AccountsModel = mock[AccountsModel]
+    implicit val transactionsModel: TransactionsModel = mock[TransactionsModel]
+    Mockito.when(accountsModel.transferTransactionally(
+      org.mockito.Matchers.anyLong(),
+      org.mockito.Matchers.anyLong(),
+      org.mockito.Matchers.any[BigDecimal]
+    )).thenAnswer((_: InvocationOnMock) => Future.failed(new Exception("some problem")))
+
+    //when-then
+    Post(s"/transfer", TransferRequest(petia.id, petia.id, 200)) ~> route ~> check {
+      status shouldEqual StatusCodes.InternalServerError
+      contentType shouldEqual ContentTypes.`application/json`
+      headers shouldEqual Seq()
+      responseAs[ErrorMessage].message shouldBe "Internal error"
+    }
+  }
+
+  // ================================== GET TRANSACTIONS =========================================
+
+  val transaction_1 = Transaction(1, 2, 3, 10)
+  val transaction_2 = Transaction(2, 4, 5, 123)
+  test("find transactions should return all transactions") {
+
+    //given
+    implicit val accountsModel: AccountsModel = mock[AccountsModel]
+    implicit val transactionsModel: TransactionsModel = mock[TransactionsModel]
+    Mockito.when(transactionsModel.all).thenReturn(Future.successful(Seq(
+      transaction_1, transaction_2
+    )))
+
+    //when-then
+    Get("/transactions") ~> route ~> check {
+      status shouldEqual StatusCodes.OK
+      contentType shouldEqual ContentTypes.`application/json`
+      headers shouldEqual Seq()
+      responseAs[Seq[Transaction]] should contain theSameElementsAs Seq(transaction_1, transaction_2)
+    }
+  }
+
+  test("find transactions should return InternalServerError if error") {
+
+    //given
+    implicit val accountsModel: AccountsModel = mock[AccountsModel]
+    implicit val transactionsModel: TransactionsModel = mock[TransactionsModel]
+    Mockito.when(transactionsModel.all).thenAnswer((_: InvocationOnMock) => Future.failed(new Exception("some problem")))
+
+    //when-then
+    Get("/transactions") ~> route ~> check {
+      status shouldEqual StatusCodes.InternalServerError
+      contentType shouldEqual ContentTypes.`application/json`
+      headers shouldEqual Seq()
+      responseAs[ErrorMessage].message shouldBe "Internal error"
+    }
+  }
+
 }
