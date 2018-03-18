@@ -5,7 +5,7 @@ import java.util.concurrent.TimeoutException
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.server.Directives.{complete, extractRequest, extractRequestContext, extractUri}
 import akka.http.scaladsl.server.{ExceptionHandler, MalformedRequestContentRejection, RejectionHandler}
-import com.pronvis.revolut.test.exceptions.BusinessException
+import com.pronvis.revolut.test.exceptions.RevolutTestException
 import com.typesafe.scalalogging.LazyLogging
 import io.circe.generic.auto._
 import io.circe.syntax._
@@ -57,7 +57,7 @@ object ErrorMessage {
   def apply(ex: Throwable): ErrorMessage = {
     val message = ex match {
       case _: TimeoutException => "Timeout"
-      case _: BusinessException => ex.getMessage
+      case _: RevolutTestException => ex.getMessage
       case _ => "Internal error"
     }
     ErrorMessage(message)

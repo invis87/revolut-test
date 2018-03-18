@@ -1,6 +1,6 @@
 package com.pronvis.revolut.test.model
 
-import com.pronvis.revolut.test.exceptions.BusinessException
+import com.pronvis.revolut.test.controllers.TransactionLogic
 import slick.dbio.Effect.Write
 import slick.jdbc.JdbcProfile
 
@@ -54,14 +54,17 @@ class AccountsModel(
 
   def transferTransactionally(from: Long, to: Long, amount: BigDecimal): Future[Unit] = db.run {
     findQuery(Set(from, to)).forUpdate.result.flatMap { accs =>
-      val fromAcc = accs.find(_.id == from).getOrElse(throw new BusinessException(s"Account '$from' doesn't exists!"))
-      val toAcc = accs.find(_.id == to).getOrElse(throw new BusinessException(s"Account '$to' doesn't exists!"))
-      if(fromAcc.balance < amount) throw new BusinessException(s"'${fromAcc.name}' don't have enough money($amount) to send.")
+      TransactionLogic.validateTransaction(from, to, accs, amount) match {
+        case Left(e) => throw e
+        case Right(tuple) =>
+          val (fromAcc, toAcc) = tuple
 
-      for {
-        _ <- updateAction(fromAcc.copy(balance = fromAcc.balance - amount))
-        _ <- updateAction(toAcc.copy(balance = toAcc.balance + amount))
-      } yield ()
+          for {
+            _ <- updateAction(fromAcc.copy(balance = fromAcc.balance - amount))
+            _ <- updateAction(toAcc.copy(balance = toAcc.balance + amount))
+          } yield ()
+      }
+
     }.transactionally
   }
 
