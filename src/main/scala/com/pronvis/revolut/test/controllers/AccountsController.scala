@@ -3,32 +3,33 @@ package com.pronvis.revolut.test.controllers
 import akka.actor.ActorSystem
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
-import akka.stream.Materializer
-import com.pronvis.revolut.test.Settings
+import com.pronvis.revolut.test.controllers.requests.CreateAccountRequest
 import com.pronvis.revolut.test.model.AccountsMiddleware
 import com.typesafe.scalalogging.LazyLogging
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import io.circe.generic.auto._
 
-import scala.concurrent.{ExecutionContext, Future, TimeoutException}
+import scala.concurrent.ExecutionContext
+import scala.concurrent.duration.FiniteDuration
 
-class AccountsController(accountsMiddleware: AccountsMiddleware)(
+class AccountsController(accountsMiddleware: AccountsMiddleware, queryTimeout: FiniteDuration)(
   implicit system: ActorSystem,
-  mat: Materializer,
-  ec: ExecutionContext,
-  settings: Settings) extends Controller with FailFastCirceSupport with LazyLogging {
+  ec: ExecutionContext) extends TimeoutController(queryTimeout) with FailFastCirceSupport with LazyLogging {
 
-  def route: Route = {
+  def timeoutedRoute: Route = {
     path("accounts") {
       get {
-        val allAccs = accountsMiddleware.getAll
-        complete(allAccs)
-      }
+        complete(accountsMiddleware.getAll)
+      } ~
+        post {
+          entity(as[CreateAccountRequest]) { newAccount =>
+            complete(accountsMiddleware.addAccount(newAccount))
+          }
+        }
+
     }
+
   }
 
-  //-------------------------------------------------------------------------
-  def delayed(queryName: String) =
-    akka.pattern.after(settings.queryTimeout, using = system.scheduler)(Future.failed(
-      new TimeoutException(s"[$queryName] query did not complete within ${ settings.queryTimeout }")))
+
 }

@@ -1,8 +1,8 @@
 CREATE TABLE "accounts" (
-    "id" BIGINT NOT NULL,
+    "id" SERIAL NOT NULL,
     "name" VARCHAR NOT NULL,
-    "amount" BIGINT NULL,
+    "balance" BIGINT NULL,
     PRIMARY KEY("id")
 );
 CREATE UNIQUE INDEX id_idx on "accounts" ("id");
-CREATE INDEX name_idx on "accounts" ("name");
+CREATE UNIQUE INDEX name_idx on "accounts" ("name");

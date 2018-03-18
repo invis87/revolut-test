@@ -10,13 +10,12 @@ import com.pronvis.revolut.test.model.{AccountsMiddleware, AccountsModel}
 import com.pronvis.revolut.test.utils.ErrorHelper
 import com.typesafe.config.ConfigFactory
 import com.typesafe.scalalogging.LazyLogging
+import slick.jdbc.JdbcBackend
 import slick.jdbc.JdbcBackend.Database
-import slick.jdbc.{JdbcBackend, JdbcProfile}
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext}
 import scala.util.{Failure, Success}
-
 
 object Application extends App with LazyLogging with ErrorHelper {
 
@@ -32,24 +31,21 @@ object Application extends App with LazyLogging with ErrorHelper {
 
   // ============ DATABASE ============
 
-  val profileClass = Class.forName(config.getString("revolut.storage.profile"))
-  val jdbcProfile: JdbcProfile = profileClass.getField("MODULE$").get(profileClass).asInstanceOf[slick.jdbc.JdbcProfile]
-
   implicit val db: JdbcBackend.Database = Database.forConfig(path = "revolut.storage", config = config)
   SchemaMigration.migrate(
     slickDatasource = db.source,
     dir = settings.migrationsDirs,
     schema = settings.storageSchema,
     baseline = true,
-    shutdown = { shutdownHook; sys.exit(1) }
-  )
-  val accountsModel = new AccountsModel(jdbcProfile)
-  val accountsMiddleware = new AccountsMiddleware(db, accountsModel)
+    shutdown = { shutdownHook; sys.exit(1) })
 
   // ============ CONTROLLERS ============
 
+  val accountsModel = new AccountsModel(settings.jdbcProfile)
+  val accountsMiddleware = new AccountsMiddleware(db, accountsModel)
+
   val controllers = Seq(
-    new AccountsController(accountsMiddleware)
+    new AccountsController(accountsMiddleware, settings.queryTimeout)
   )
 
   // ============ START SERVER ============
