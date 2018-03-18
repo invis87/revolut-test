@@ -1,6 +1,7 @@
 import sbt.Keys._
 import sbt._
 import sbt.plugins.{IvyPlugin, JvmPlugin}
+import sbtassembly.AssemblyKeys.{assemblyJarName, assembly}
 
 object CommonModule extends AutoPlugin {
 
@@ -25,6 +26,8 @@ object CommonModule extends AutoPlugin {
     fork in Test := true,
     fork in Compile := true,
     javaOptions += "-Djava.net.preferIPv4Stack=true",
-    scalacOptions ++= Seq("-deprecation", "-feature", "-language:postfixOps")
+    scalacOptions ++= Seq("-deprecation", "-feature", "-language:postfixOps"),
+
+    assemblyJarName in assembly := name.value + "-" + version.value + "-jar-with-dependencies.jar"
   )
 }
