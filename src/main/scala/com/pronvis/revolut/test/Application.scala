@@ -6,7 +6,7 @@ import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.stream.{ActorMaterializer, ActorMaterializerSettings}
 import com.pronvis.revolut.test.controllers.{AccountsController, Controller}
-import com.pronvis.revolut.test.model.{AccountsMiddleware, AccountsModel}
+import com.pronvis.revolut.test.model.{AccountsMiddleware, AccountsModel, TransactionsModel}
 import com.pronvis.revolut.test.utils.ErrorHelper
 import com.typesafe.config.ConfigFactory
 import com.typesafe.scalalogging.LazyLogging
@@ -42,7 +42,8 @@ object Application extends App with LazyLogging with ErrorHelper {
   // ============ CONTROLLERS ============
 
   val accountsModel = new AccountsModel(settings.jdbcProfile)
-  val accountsMiddleware = new AccountsMiddleware(db, accountsModel)
+  val transactionsModel = new TransactionsModel(settings.jdbcProfile)
+  val accountsMiddleware = new AccountsMiddleware(db, accountsModel, transactionsModel)
 
   val controllers = Seq(
     new AccountsController(accountsMiddleware, settings.queryTimeout)

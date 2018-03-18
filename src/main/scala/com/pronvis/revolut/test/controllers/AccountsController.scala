@@ -3,7 +3,7 @@ package com.pronvis.revolut.test.controllers
 import akka.actor.ActorSystem
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
-import com.pronvis.revolut.test.controllers.requests.CreateAccountRequest
+import com.pronvis.revolut.test.controllers.requests.{CreateAccountRequest, TransferRequest}
 import com.pronvis.revolut.test.model.AccountsMiddleware
 import com.typesafe.scalalogging.LazyLogging
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
@@ -27,6 +27,14 @@ class AccountsController(accountsMiddleware: AccountsMiddleware, queryTimeout: F
           }
         }
 
+    } ~ path("transfer") {
+      post {
+        entity(as[TransferRequest]) { transferReq =>
+          complete(accountsMiddleware.transferFunds(transferReq.from, transferReq.to, transferReq.amount))
+        }
+      }
+    } ~ path("transactions") {
+      complete(accountsMiddleware.getAllTransactions)
     }
 
   }
