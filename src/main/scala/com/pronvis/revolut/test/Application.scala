@@ -41,9 +41,9 @@ object Application extends App with LazyLogging with ErrorHelper {
 
   // ============ CONTROLLERS ============
 
-  val accountsModel = new AccountsModel(settings.jdbcProfile)
-  val transactionsModel = new TransactionsModel(settings.jdbcProfile)
-  val accountsMiddleware = new AccountsMiddleware(db, accountsModel, transactionsModel)
+  val accountsModel = new AccountsModel(db, settings.jdbcProfile)
+  val transactionsModel = new TransactionsModel(db, settings.jdbcProfile)
+  val accountsMiddleware = new AccountsMiddleware(accountsModel, transactionsModel)
 
   val controllers = Seq(
     new AccountsController(accountsMiddleware, settings.queryTimeout)

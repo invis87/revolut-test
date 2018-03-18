@@ -1,9 +1,12 @@
 package com.pronvis.revolut.test.model
 
-import slick.dbio.Effect.{Read, Write}
 import slick.jdbc.JdbcProfile
 
-class TransactionsModel(protected val driver: JdbcProfile) {
+import scala.concurrent.Future
+
+class TransactionsModel(
+  protected val db: slick.jdbc.JdbcBackend#Database,
+  protected val driver: JdbcProfile) {
 
   import driver.api._
 
@@ -19,11 +22,11 @@ class TransactionsModel(protected val driver: JdbcProfile) {
   lazy val transactions = TableQuery[TransactionsTable]
   lazy val insertQuery = transactions returning transactions.map(_.id)
 
-  def addTransaction(from: Long, to: Long, amount: BigDecimal): DBIOAction[Long, NoStream, Write] = {
+  def addTransaction(from: Long, to: Long, amount: BigDecimal): Future[Long] = db.run {
     insertQuery += Transaction(0, from, to, amount)
   }
 
-  def all: DBIOAction[Seq[Transaction], NoStream, Read] = {
+  def all: Future[Seq[Transaction]] = db.run {
     transactions.result
   }
 

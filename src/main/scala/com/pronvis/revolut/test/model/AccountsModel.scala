@@ -1,11 +1,15 @@
 package com.pronvis.revolut.test.model
 
-import slick.dbio.Effect.{Read, Write}
+import com.pronvis.revolut.test.exceptions.BusinessException
+import slick.dbio.Effect.Write
 import slick.jdbc.JdbcProfile
 
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, Future}
 
-class AccountsModel(protected val driver: JdbcProfile)(implicit ec: ExecutionContext) {
+class AccountsModel(
+  protected val db: slick.jdbc.JdbcBackend#Database,
+  protected val driver: JdbcProfile)
+  (implicit ec: ExecutionContext) {
 
   import driver.api._
 
@@ -20,35 +24,41 @@ class AccountsModel(protected val driver: JdbcProfile)(implicit ec: ExecutionCon
   lazy val accounts = TableQuery[AccountsTable]
   lazy val insertQuery = accounts returning accounts.map(_.id)
 
-  def all: DBIOAction[Seq[Account], NoStream, Read] = {
+  def all: Future[Seq[Account]] = db.run {
     accounts.result
   }
 
-  def addAccount(name: String, balance: BigDecimal): DBIOAction[Long, NoStream, Write] = {
+  def addAccount(name: String, balance: BigDecimal): Future[Long] = db.run {
     insertQuery += Account(0, name, balance)
   }
 
-  def update(acc: Account): DBIOAction[Int, NoStream, Write] = {
+  def updateAction(acc: Account): DBIOAction[Int, NoStream, Write] = {
     accounts.insertOrUpdate(acc)
   }
 
-  def find(name: String): DBIOAction[Option[Account], NoStream, Read] = {
+  def update(acc: Account): Future[Int] = db.run  {
+    updateAction(acc)
+  }
+
+  def find(name: String): Future[Option[Account]] = db.run {
     accounts.filter(_.name === name).result.headOption
   }
 
-  def find(ids: Set[Long]): DBIOAction[Seq[Account], NoStream, Read] = {
+  def find(ids: Set[Long]): Future[Seq[Account]] = db.run {
     accounts.filter(_.id inSet ids).result
   }
 
-  def transferTransactionally(from: Account, toAccount: Account, amount: BigDecimal):
-  DBIOAction[Unit, NoStream, Read with Write with Write with Effect.Transactional] = {
-    val action = for {
-      _ <- accounts.filter(acc => acc.id === from.id || acc.id === toAccount.id).forUpdate.result
-      _ <- update(from.copy(balance = from.balance - amount))
-      _ <- update(toAccount.copy(balance = toAccount.balance + amount))
-    } yield ()
+  def transferTransactionally(from: Long, to: Long, amount: BigDecimal): Future[Unit] = db.run {
+    accounts.filter(acc => acc.id === from || acc.id === to).forUpdate.result.flatMap { accs =>
+      val fromAcc = accs.find(_.id == from).getOrElse(throw new BusinessException(s"Account '$from' doesn't exists!"))
+      val toAcc = accs.find(_.id == to).getOrElse(throw new BusinessException(s"Account '$to' doesn't exists!"))
+      if(fromAcc.balance < amount) throw new BusinessException(s"'${fromAcc.name}' don't have enough money($amount) to send.")
 
-    action.transactionally
+      for {
+        _ <- updateAction(fromAcc.copy(balance = fromAcc.balance - amount))
+        _ <- updateAction(toAcc.copy(balance = toAcc.balance + amount))
+      } yield ()
+    }.transactionally
   }
 
 }
